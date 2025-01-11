@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
-
 #define BUFFER_LENGTH 255
 
 typedef struct {
@@ -15,7 +14,7 @@ typedef struct {
 /**
  * @brief 初始化一个InputBuffer
  */
-InputBuffer* new_input_buffer() {
+InputBuffer* new_input_buffer(void) {
 	InputBuffer* input_buffer = (InputBuffer*)malloc(sizeof(InputBuffer));
 	input_buffer->input_lenght = 0;
 	return input_buffer;
@@ -46,7 +45,7 @@ ssize_t getline(char s[]) {
 /**
  * @brief 打印提示
  */
-void print_prompt() {
+void print_prompt(void) {
 	printf("mini-sql > ");
 }
 
@@ -61,20 +60,101 @@ void read_input(InputBuffer* input_buffer) {
 	input_buffer->buffer[bytes_read -  1] = 0;
 }
 
+typedef enum {
+	META_COMMAND_SUCCESS, //输入的命令是正确的元数据
+	META_COMMAND_UNRECOGNIZED_COMMAND //输入的命令是未识别的元数据
+} MetaCommandResult;
 
-int main(int argc, char *argv[]) {
+
+/**
+ * @brief 执行元数据命令 
+ */
+MetaCommandResult do_meta_command(InputBuffer* input_buffer){
+	if(strcmp(input_buffer->buffer, ".exit") == 0){
+		puts("good bye~");
+		close_input_buffer(input_buffer);
+		exit(EXIT_SUCCESS);
+	}else{
+		return META_COMMAND_UNRECOGNIZED_COMMAND;
+	}
+}
+
+typedef enum {
+	STATEMENT_INSERT, //insert语句类型
+	STATEMENT_SELECT //select语句类型
+} StatementType;
+
+typedef enum {
+	PREPARE_SUCCESS, //输入的sql是正确的sql
+	PREPARE_UNRECOGNIZED_STATEMENT//输入的sql不正确
+} PrepareResult;
+
+typedef struct {
+	StatementType type;
+} Statement; //表示执行语句
+
+/**
+ * @brief 处理sql语句 
+ */
+PrepareResult prepare_statement(InputBuffer* input_buffer, Statement* statement){
+	if(strncmp(input_buffer->buffer, "insert", 6) == 0){
+		statement->type = STATEMENT_INSERT;
+		return PREPARE_SUCCESS;
+	}
+	if(strncmp(input_buffer->buffer, "select", 6) == 0){
+		statement->type = STATEMENT_SELECT;
+		return PREPARE_SUCCESS;
+	}
+	return PREPARE_UNRECOGNIZED_STATEMENT;
+}
+
+/**
+ * @brief 执行statement 
+ */
+void execute_statement(Statement* statement){
+	switch(statement->type){
+		case(STATEMENT_INSERT):
+			//执行insert操作
+			puts("This is where we would do an insert.");
+			break;
+		case(STATEMENT_SELECT):
+			//执行update操作
+			puts("This is where we would do an update.");
+			break;
+	}
+}
+
+int main(void) {
 	InputBuffer* input_buffer = new_input_buffer();
 	while (true) {
 		print_prompt();
 		read_input(input_buffer);
 
-		if (strcmp(input_buffer->buffer, ".exit") == 0) {
-			puts("good bye~");
-			close_input_buffer(input_buffer);
-			exit(EXIT_SUCCESS);
-		} else {
-			printf("Unrecognized command '%s'.\n", input_buffer->buffer);
+		
+		//执行元数据操作
+		if (input_buffer->buffer[0] == '.') {
+			//以.为开头的语句表示执行元数据操作
+			switch(do_meta_command(input_buffer)){
+				case(META_COMMAND_SUCCESS):
+					continue;
+				case(META_COMMAND_UNRECOGNIZED_COMMAND):
+					printf("Unrecognized command '%s' \n", input_buffer->buffer);
+					continue;
+			}
 		}
+		
+		//执行sql操作
+		Statement statement;
+		switch(prepare_statement(input_buffer, &statement)){
+			case(PREPARE_SUCCESS):
+				break;
+			case(PREPARE_UNRECOGNIZED_STATEMENT):
+				printf("Unrecognized keyword at start of '%s'.\n", input_buffer->buffer);
+				continue;
+		}
+		execute_statement(&statement);
+		puts("Executed.");
+		
 	}
 	return 0;
 }
